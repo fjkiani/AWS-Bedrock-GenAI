@@ -2,7 +2,7 @@
 import streamlit as st 
 import rag_backend as demo 
 
-st.set_page_config(page_title="HR Q and A with RAG") ### Modify Heading
+st.set_page_config(page_title="Retrieval Augmented Generation") ### Modify Heading
 
 new_title = '<p style="font-family:sans-serif; color:Green; font-size: 42px;">HR Q & A with RAG 🎯</p>'
 st.markdown(new_title, unsafe_allow_html=True) ### Modify Title

@@ -1,0 +1,39 @@
+2024-07-17 00:24:29,990 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools/fabda847-727f-4918-a743-3403907b9a5d/tables "HTTP/1.1 200 OK"
+2024-07-17 00:24:29,991 - INFO - Tables in test_pool:
+2024-07-17 00:24:29,991 - INFO - Data pool: testing1234
+2024-07-17 00:24:36,469 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools/744d6658-b91c-4517-8ea9-bdf83bdb9873/tables "HTTP/1.1 200 OK"
+2024-07-17 00:24:36,473 - INFO - Tables in testing1234:
+2024-07-17 00:24:36,473 - INFO - Data pool: Get Data into Celonis - P2P
+2024-07-17 00:24:40,051 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools/aaad23e8-6b57-4683-a021-1560f2bb773e/tables "HTTP/1.1 200 OK"
+2024-07-17 00:24:40,054 - INFO - Tables in Get Data into Celonis - P2P:
+2024-07-17 00:24:40,054 - INFO - Data pool: new_test_pool
+2024-07-17 00:24:45,623 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools/a6308ea5-a39d-4165-861b-7f0c0d817aab/tables "HTTP/1.1 200 OK"
+2024-07-17 00:24:45,624 - INFO - Tables in new_test_pool:
+2024-07-17 00:24:45,988 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools "HTTP/1.1 200 OK"
+2024-07-17 00:24:45,995 - INFO - Found existing data pool: new_test_pool
+2024-07-17 00:24:45,995 - INFO - Table schema for TestTable:
+2024-07-17 00:24:45,997 - INFO - - id: int64
+2024-07-17 00:24:45,997 - INFO - - name: object
+2024-07-17 00:24:45,997 - INFO - - value: int64
+2024-07-17 00:24:50,504 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools/a6308ea5-a39d-4165-861b-7f0c0d817aab/tables "HTTP/1.1 200 OK"
+2024-07-17 00:24:50,506 - INFO - Table 'TestTable' not found. Creating new table.
+2024-07-17 00:24:54,788 - INFO - HTTP Request: GET https://51cdv7o2-2024-07-16.training.celonis.cloud/integration/api/pools/a6308ea5-a39d-4165-861b-7f0c0d817aab/tables "HTTP/1.1 200 OK"
+2024-07-17 00:24:54,790 - WARNING - STRING columns are by default stored as VARCHAR(80) and therefore cut after 80 characters. You can specify a custom field length for each column using the `column_config` parameter.
+2024-07-17 00:24:54,790 - ERROR - Error pushing data: 1 validation error for DataPushJob
+targetName
+  str type expected (type=type_error.str)
+2024-07-17 00:24:54,790 - ERROR - Error type: ValidationError
+2024-07-17 00:24:54,796 - ERROR - Traceback: Traceback (most recent call last):
+  File "/Users/fahadkiani/Desktop/development/Bedrock/Celonis/celonis_connection.py", line 48, in push_data_to_celonis
+    pool.create_table(table_name, column_config)
+  File "/Users/fahadkiani/anaconda3/envs/newenv/lib/python3.11/site-packages/pycelonis/ems/data_integration/data_pool.py", line 393, in create_table
+    data_push_job = self.create_data_push_job(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/fahadkiani/anaconda3/envs/newenv/lib/python3.11/site-packages/pycelonis/ems/data_integration/data_pool.py", line 281, in create_data_push_job
+    DataPushJobBase(
+  File "/Users/fahadkiani/anaconda3/envs/newenv/lib/python3.11/site-packages/pydantic/v1/main.py", line 341, in __init__
+    raise validation_error
+pydantic.v1.error_wrappers.ValidationError: 1 validation error for DataPushJob
+targetName
+  str type expected (type=type_error.str)
+

@@ -7,6 +7,7 @@ from langchain.vectorstores import FAISS
 from langchain.indexes import VectorstoreIndexCreator
 from langchain.llms.bedrock import Bedrock
 
+
 #5c. Wrap within a function
 def hr_index():
     #2. Define the data source and load data with PDFLoader(https://www.upl-ltd.com/images/people/downloads/Leave-Policy-India.pdf)
