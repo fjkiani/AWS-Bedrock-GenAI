@@ -1,0 +1,127 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 750px;
+                 background-color: #222222;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG200", "label": "Oral English Communication I", "shape": "dot", "title": "Designed to help students hear and produce the sounds of English as an International Language with greater accuracy and confidence. Focuses on pronunciation features (e.g., consonant sounds, consonant clusters, vowels, thought groups, and nuclear stress)."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG201", "label": "Oral English Communication II", "shape": "dot", "title": "Designed to help students develop conversational fluency in English as an International Language. Focuses on applying knowledge of linguistic features and communicative skills during conversational exchange in a variety of social, academic, and professional contexts."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG202", "label": "Oral English Communication III", "shape": "dot", "title": "Designed to help students hone their public speaking skills in English as an International Language. Focuses on preparing, organizing, and delivering speeches and presentations and interacting with the audience, emphasizing skills needed in academic settings."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG23A", "label": "Oral English Communication I", "shape": "dot", "title": "Designed to help students hear and produce the sounds of English as an International Language with greater accuracy and confidence. Focuses on pronunciation features (e.g., consonant sounds, consonant clusters, vowels, thought groups, and nuclear stress)."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG23C", "label": "Oral English Communication III", "shape": "dot", "title": "Designed to help students hone their public speaking skills in English as an International Language. Focuses on preparing, organizing, and delivering speeches and presentations and interacting with the audience, emphasizing skills needed in academic settings."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG24", "label": "ESL International TA Workshop", "shape": "dot", "title": "Designed for advanced-level international students preparing to be teaching assistants. Provides extensive practice in oral and written communication skills associated with teaching introductory-level college courses and participating in academic presentations and discussions. Review and analysis of language problems."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ACENG23B", "label": "Oral English Communication II", "shape": "dot", "title": "Designed to help students develop conversational fluency in English as an International Language. Focuses on applying knowledge of linguistic features and communicative skills during conversational exchange in a variety of social, academic, and professional contexts."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "AFAM158", "label": "Topics in African American Social Sciences", "shape": "dot", "title": "Provides students with an opportunity to pursue advanced work in African American studies from one or more social science approaches (psychology, sociology, anthropology, economics, and others)."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANATOMY230A", "label": "Molecular, Cellular, \u0026 Developmental Neurobiology", "shape": "dot", "title": "Molecular aspects of the structure and function of neurons and glia including neurotransmission, synaptic modulation, and channels.  Neural development at the cellular and molecular level including neurogenesis, pattern formation, trophic factors, axonal growth, and synaptic rearrangement."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANATOMY292A", "label": "Topics in Neural Circuit Mapping", "shape": "dot", "title": "Presentations/lectures by invited faculty and student discussion."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO128A", "label": "Science, Technology, Controversy", "shape": "dot", "title": "Explores ways in which the social sciences conceive of science as a sociocultural practice. Emphasis on literature in Science and Technology Studies (STS), especially writings that concern the relationship of science to space and place, power, and politics."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO128B", "label": "Race, Gender, and Science", "shape": "dot", "title": "Perfect for pre-health, science, and social science majors wanting to appreciate how science and society interact. Race and gender as biological and socio-cultural constructs are examined. Questions explored: What is disease? What is science? What are social and biological differences."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO134G", "label": "HIV/AIDS in a Global Context", "shape": "dot", "title": "Examines issues concerning cultural conceptions of HIV infection and disease worldwide. Topics include treatment and prevention, identity and behavior, risk, ethnicity, gender, youth, sexuality, activism, drug use, illness, religion, the clinical encounter, national belonging, and the pharmaceutical industry."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO150A", "label": "Language and Social Cognition", "shape": "dot", "title": "Explores the relationship between language and cognition in social and cultural contexts. The overall goal is to think through how language structure and use impact how individuals perceive, think about, and understand the world around them."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO151A", "label": "Improvisation, Language, and Culture", "shape": "dot", "title": "Addresses improvisation, both in performance and in everyday life. Examines improvisation as the \"flexible regulation\" of everyday behavior by exploring different scholarly treatments of language and interaction, and working on developing actual theatrical improvisation skills."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO152A", "label": "Language Origins: Evolution, Genetics, and the Brain", "shape": "dot", "title": "Examines how human language(s) may have originated. Studies pertinent techniques (reconstruction) and addresses related questions, including is our language faculty inborn (i.e., genetically encoded)? Can brain imaging and population genetics research help to unlock this mystery of human evolution?."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO204A", "label": "Proseminar in Medicine, Science, and Technology", "shape": "dot", "title": "Explores the phenomena studied by \"medical anthropology\" and \"science and technology studies\" are inextricably linked, and how understanding formations requires moving between disparate fields of inquiry.  Required for students pursuing a Graduate Certificate in Anthropoligies of Medicine, Science, and Technology."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO2D", "label": "Introduction to Language and Culture", "shape": "dot", "title": "Explores what the study of language can reveal about ourselves as bearers of culture. After introducing some basic concepts, examines how cultural knowledge is linguistically organized and how language might shape our perception of the world."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO125C", "label": "Environmental Anthropology", "shape": "dot", "title": "Introduces students to anthropological and qualitative research on the relationship of humans, non-humans, and environments. Focuses on how to analyze and evaluate social and cultural differences in environmental perception, relations, justice, governance, sustainability, and cosmology."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO125F", "label": "Humans and Other Animals", "shape": "dot", "title": "Explores peoples\u0027 relationships with other animals, a topic that continues to shape anthropological understandings of humanness, culture, and the social.  Subthemes: symbol and matter, nature/culture, ontologies, relations, moralities, ecologies, futures."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO128C", "label": "Digital Cultures", "shape": "dot", "title": "Explores cultural and political implications of the infotech revolution and the ways new media are used around the world, new cultural practices and spaces (e.g., cybercafes), debates surrounding the meanings of these new technologies, and their implications for transforming society."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO134C", "label": "Medicine, Food, and Health", "shape": "dot", "title": "With anthropological studies of edible things as its foundation, this course explores topics related to the relationship between medical knowledge, eating, and health from a medical anthropological perspective."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ANTHRO45A", "label": "Science, Culture, Power", "shape": "dot", "title": "Examines science in historical and cultural context (Scientific and Darwinian Revolutions, Manhattan Project, contemporary biosciences) to understand scientific truths and their limits, scientists as social actors, and vital intersections of sciences with religion, politics, gender, and other forms of culture."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC10A", "label": "Arabic Peer-to-Peer Language Mentor Program", "shape": "dot", "title": "Peer-to-Peer Language Mentor Program in which student mentors work with student mentees to increase the language skills of both participants. One hour weekly meetings. ARABIC 10A is for language mentors."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC10B", "label": "Arabic Peer-to-Peer Language Mentor Program", "shape": "dot", "title": "Peer-to-Peer Language Mentor Program in which student mentors work with student mentees to increase the language skills of both participants. One hour weekly meetings. ARABIC 10B is for language mentees."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC1A", "label": "Fundamentals of Arabic", "shape": "dot", "title": "Designed for students with little or no exposure to Arabic. Using real world texts, provides a firm foundation in the orthography, grammar, syntax, and vocabulary of Modern Standard Arabic. Introduces students to Arab world cultures."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC1B", "label": "Fundamentals of Arabic", "shape": "dot", "title": "Designed for students with little or no exposure to Arabic. Using real world texts, provides a firm foundation in the orthography, grammar, syntax, and vocabulary of Modern Standard Arabic. Introduces students to Arab world cultures."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC1C", "label": "Fundamentals of Arabic", "shape": "dot", "title": "Designed for students with little or no exposure to Arabic. Using real world texts, provides a firm foundation in the orthography, grammar, syntax, and vocabulary of Modern Standard Arabic. Introduces students to Arab world cultures."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC2A", "label": "Intermediate Arabic Language and Culture", "shape": "dot", "title": "Designed for students to advance their Arabic language skills to intermediate level. Students will develop their understanding of grammar and syntax to a more sophisticated level. Facilitates intermediate-level reading, writing, and speaking skills. Fosters college-level cultural literacy."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC2B", "label": "Intermediate Arabic Language and Culture", "shape": "dot", "title": "Designed for students to advance their Arabic language skills to intermediate level. Students will develop their understanding of grammar and syntax to a more sophisticated level. Facilitates intermediate-level reading, writing, and speaking skills. Fosters college-level cultural literacy."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARABIC2C", "label": "Intermediate Arabic Language and Culture", "shape": "dot", "title": "Designed for students to advance their Arabic language skills to intermediate level. Students will develop their understanding of grammar and syntax to a more sophisticated level.  Facilitates intermediate-level reading, writing, and speaking skills. Fosters college-level cultural literacy."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ART12C", "label": "Intelligences of Arts", "shape": "dot", "title": "Introduces contemporary neuroscience and new approaches to cognition \u2013 embodied, enactive, extended, situated, distributed. Reviews the history of related  ethological, biological, psychological, technological, and philosophical traditions. Considers arts and cultural practices from these and other perspectives, and considers case studies."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ART65C", "label": "Gizmology and Kinetics", "shape": "dot", "title": "Provides students with basic skills in materials, construction and design applicable to making machines, musical instruments and things with moving parts enabling work in kinetic sculpture, custom interactive systems, Mechatronics, Robotics, and Maker/DIY culture. Materials fee."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARTHIS196", "label": "Ethics, Law, and Art", "shape": "dot", "title": "Addresses a broad range of ethical and legal issues pertaining to art, ownership, looting and theft, museum policies, and cultural heritage."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "ARTHIS296", "label": "Ethics, Law, and Art", "shape": "dot", "title": "Addresses a broad range of ethical and legal issues pertaining to art, ownership, looting and theft, museum policies, and cultural heritage."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA201A", "label": "Statistics for Data Science", "shape": "dot", "title": "Methods of statistical inference, emphasizing applications to administrative and management decision problems. Topics include classical estimation and hypothesis testing, regression, correlation, analysis of variance, decision analysis, and forecasting."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA201B", "label": "Management Science for Analytics", "shape": "dot", "title": "An introduction to computer-based models for decision making. Topics include optimization (linear programming, integer programming, network flow models) and computer simulation. Uses spreadsheets extensively, including Excel built-in and add-in packages."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA211", "label": "MSBA ProSeminar", "shape": "dot", "title": "Provides students in the Merage School Master of Science in Business Analytics program with information and practical skills for success in the MSBA program and for business career planning."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA273", "label": "Machine Learning for Analytics", "shape": "dot", "title": "Introduces methods to mine data repositories for business intelligence to facilitate analytical decision-making. Topics include clustering for market segmentation, association rules to discover relationships between different purchase decisions, and  Naive-Bayes classification techniques for decision making using decision-trees."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA274", "label": "Deep Learning and Applications", "shape": "dot", "title": "Provides students with an understanding of specific topics in machine learning including networks and deep learning, improving neural networks, structuring deep learning projects, and convolutional neural networks."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA275", "label": "Natural Language Processing and Applications", "shape": "dot", "title": "Focuses on providing students knowledge of advanced techniques for data analytics. Students deepen their understanding of topics including: dimension reduction, text mining and topic modeling, sentiment analysis, collaborative filtering, and causal estimation."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BANA287", "label": "The Art and Science of Applied Forecast Modeling", "shape": "dot", "title": "Covers core and advanced techniques of forecasting. Emphasizes the innovation required to develop accurate models, inspires the need to break rules, leverages ideation needed to discover data sources and engineer variables, and seeks ways to build new models."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BATS247", "label": "Measurement Science, Outcomes Research, and Advanced Applied Methods", "shape": "dot", "title": "Further the understanding of methodologic issues involved in the conducting of comparative effectiveness research (CER). Topics: risk adjustment, balancing observational study designs, use of outcomes from multiple data sources, innovations clinical trial designs, the conduct of meta-analysis, and psychometric methods."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BATS280", "label": "Biomedical and Translational Science Seminar", "shape": "dot", "title": "Students present their current research or a topic of interest and are exposed to diverse projects in the biomedical and translational science arena."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BATS295", "label": "Master\u0027s Thesis Research and Writing", "shape": "dot", "title": "Master\u2019s thesis research and writing with Biomedical and Translational Science faculty."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BATS296", "label": "Ethics in Clinical Research", "shape": "dot", "title": "Covers major frameworks and concepts of ethics in public health research as well as human subject protection issues."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BATS299", "label": "Independent Directed Research", "shape": "dot", "title": "Independent research with Biomedical and Translational Science faculty."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI100", "label": "Scientific Writing", "shape": "dot", "title": "Designed to give an overview of the basic aspects of scientific writing relevant to reporting research in the Biological Sciences."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI101", "label": "California Teach 2: Middle School Science and Mathematics Teaching", "shape": "dot", "title": "Second in a series for students interested in becoming middle or high school teachers of mathematics or science. Students gain an understanding of effective, research-based teaching strategies for grades 6-8. Includes supervised field experience in a middle school classroom."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI11", "label": "Topics in Biological Sciences", "shape": "dot", "title": "Studies in selected areas of biological sciences."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI14", "label": "California Teach 1: Introduction to Science and Mathematics Teaching", "shape": "dot", "title": "First in a series for students interested in becoming middle or high school teachers of mathematics or science. Students gain an understanding of effective, research-based teaching strategies. Includes supervised field experience in a K-12 classroom."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI190", "label": "Transfer Student Seminar", "shape": "dot", "title": "Weekly meetings consisting of presentations by faculty, professional staff, and New Student Peer Academic Advisors provide information about the School of Biological Sciences, campus resources, and special programs/opportunities."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI192", "label": "Topics in Biological Sciences Tutoring", "shape": "dot", "title": "Tutoring programs with biological sciences student peers."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI194S", "label": "Safety and Ethics for Research", "shape": "dot", "title": "Introduces students to the concepts, techniques, and ethics involved in biological sciences laboratory work."}, {"color": "#97c2fc", "font": {"color": "white"}, "id": "BIOSCI197", "label": "Special Study in Biological Sciences", "shape": "dot", "title": "Individualized instruction dealing with conceptual or theoretical problems in the biological sciences, rather than technical problems."}]);
+                  edges = new vis.DataSet([{"from": "ACENG23C", "to": "ACENG23A"}, {"from": "ACENG24", "to": "ACENG23A"}, {"from": "ACENG23C", "to": "ACENG23B"}, {"from": "ACENG24", "to": "ACENG23B"}, {"from": "ACENG24", "to": "ACENG23C"}, {"from": "ANTHRO125C", "to": "ANTHRO2D"}, {"from": "ANTHRO125F", "to": "ANTHRO2D"}, {"from": "ANTHRO128A", "to": "ANTHRO2D"}, {"from": "ANTHRO128C", "to": "ANTHRO2D"}, {"from": "ANTHRO134C", "to": "ANTHRO2D"}, {"from": "ARABIC1B", "to": "ARABIC1A"}, {"from": "ARABIC1C", "to": "ARABIC1B"}, {"from": "ARABIC2A", "to": "ARABIC1C"}, {"from": "ARABIC2B", "to": "ARABIC2A"}, {"from": "ARABIC2C", "to": "ARABIC2B"}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {"layout": {"hierarchical": {"enabled": true, "sortMethod": "directed", "direction": "LR", "nodeSpacing": 150, "treeSpacing": 200, "levelSeparation": 200}}, "nodes": {"shape": "box", "color": {"border": "#2B7CE9", "background": "#97C2FC"}, "font": {"size": 14, "face": "Arial"}}, "edges": {"smooth": true, "arrows": {"to": {"enabled": true, "scaleFactor": 1.2}}}, "interaction": {"dragNodes": true, "zoomView": true, "hover": true}, "physics": {"enabled": true, "hierarchicalRepulsion": {"nodeDistance": 120}}};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
