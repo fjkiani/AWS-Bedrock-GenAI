@@ -11,6 +11,10 @@ from numpy import dot
 from numpy.linalg import norm
 from sklearn.cluster import KMeans
 import openai
+import time
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from datetime import datetime
+import json
 
 # Load environment variables
 load_dotenv()
@@ -112,24 +116,49 @@ def validate_topics_with_neo4j(graph, topics):
     return valid_topics
 
 # Function to get embeddings using OpenAI API
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
 def get_embedding(text, model="text-embedding-ada-002"):
-    text = text.replace("\n", " ")
-    response = openai.Embedding.create(
-        input=[text],
-        model=model
-    )
-    embedding = response['data'][0]['embedding']
-    return embedding
+    try:
+        text = text.replace("\n", " ")
+        response = openai.Embedding.create(
+            input=[text],
+            model=model,
+            timeout=30  # Add timeout
+        )
+        return response['data'][0]['embedding']
+    except Exception as e:
+        print(f"Error getting embedding: {str(e)}")
+        raise  # Re-raise for retry
 
 # Function to calculate cosine similarity
 def cosine_similarity(a, b):
     return dot(a, b) / (norm(a) * norm(b))
 
+# Add connection retry decorator
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+def get_neo4j_connection():
+    try:
+        print("Attempting to connect to Neo4j...")
+        graph = Graph(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        # Test the connection
+        graph.run("MATCH (n) RETURN n LIMIT 1")
+        print("Successfully connected to Neo4j")
+        return graph
+    except Exception as e:
+        print(f"Failed to connect to Neo4j: {str(e)}")
+        raise
+
 # Main function to generate the learning roadmap
 def generate_learning_roadmap(query):
     try:
-        # Initialize the graph connection
-        graph = Graph(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
+        print("Starting learning roadmap generation...")
+        
+        # Try to establish Neo4j connection with retry logic
+        try:
+            graph = get_neo4j_connection()
+        except RetryError:
+            print("Failed to connect to Neo4j after multiple attempts")
+            return None, None
 
         # Extract relevant topics dynamically using OpenAI API
         system_prompt = "Extract the main topics for creating a learning roadmap from the following query. Focus on broad technical subjects or other fields as mentioned in the query. Return the topics as a numbered list, one topic per line."
@@ -164,110 +193,74 @@ def generate_learning_roadmap(query):
             print("No valid topics found after validation.")
             return None, None
 
-        # Build the Cypher query to fetch courses
-        course_query_conditions = []
-        params = {}
-        param_counter = 0
-
-        for topic in core_topics:
-            param_name = f'kw{param_counter}'
-            course_query_conditions.append(
-                f"(toLower(c.title) CONTAINS ${param_name} OR toLower(c.description) CONTAINS ${param_name})"
-            )
-            params[param_name] = topic.lower()
-            param_counter += 1
-
-        courses_query = f"""
-            MATCH (c:Course)
-            WHERE {" OR ".join(course_query_conditions)}
-            RETURN DISTINCT c
-            LIMIT 100
-        """
-
-        result = graph.run(courses_query, **params)
-
+        # Replace the current course fetching logic with optimized sequence
+        result = get_optimized_course_sequence(graph, core_topics)
+        
+        # Process the Neo4j results into proper course objects
         courses = []
-        course_dict = {}
-        added_course_ids = set()
-
         for record in result:
-            course_node = record['c']
-            course_id = str(course_node['id']).strip()
-
-            if course_id in added_course_ids:
-                continue  # Skip if already processed
-
-            course_info = {
-                'id': course_id,
-                'title': course_node['title'],
-                'description': course_node.get('description', ''),
-                'prerequisites': []
-            }
-            courses.append(course_info)
-            course_dict[course_id] = course_info
-            added_course_ids.add(course_id)
+            try:
+                course_data = record['c']  # This is the Neo4j node
+                course = {
+                    'id': str(course_data.get('id', '')),
+                    'title': str(course_data.get('title', 'Untitled')),
+                    'description': str(course_data.get('description', 'No description available')),
+                    'difficulty_level': int(record.get('difficulty_level', 1)),
+                    'prereq_depth': int(record.get('prereq_depth', 0)),
+                    'prereq_count': int(record.get('prereq_count', 0)),
+                    'prerequisites': [str(p.get('id', '')) for p in record.get('prerequisites', [])],
+                    'related_courses': [str(r.get('id', '')) for r in record.get('related_courses', [])]
+                }
+                courses.append(course)
+                print(f"Processed course: {course['title']}")  # Debug print
+            except Exception as e:
+                print(f"Error processing course record: {e}")
+                continue
 
         if not courses:
-            print("No courses found or no valid data to render")
+            print("No courses were processed successfully")
             return None, None
-
-        # Retrieve prerequisites for each course
-        for course in courses:
-            course_id = course['id']
-            prereq_query = """
-                MATCH (c:Course {id: $course_id})-[:REQUIRES]->(prereq:Course)
-                RETURN prereq.id AS prereq_id
-            """
-            prereq_result = graph.run(prereq_query, course_id=course_id)
-            prereq_ids = [str(record['prereq_id']).strip() for record in prereq_result if str(record['prereq_id']).strip() in added_course_ids]
-            course['prerequisites'] = prereq_ids
 
         # Compute embeddings for courses
         for course in courses:
-            text = course['title'] + " " + course['description']
+            text = f"{course['title']} {course['description']}"
             course['embedding'] = get_embedding(text)
 
-        # Check if there are enough courses to perform clustering
+        # Perform clustering if we have enough courses
         if len(courses) >= 2:
             embeddings = [course['embedding'] for course in courses]
             embeddings_array = np.array(embeddings)
-
-            num_clusters = min(len(courses), 5)  # Adjust the number of clusters
+            
+            num_clusters = min(len(courses), 5)  # Maximum of 5 clusters
             kmeans = KMeans(n_clusters=num_clusters, random_state=42)
             kmeans.fit(embeddings_array)
-
+            
             # Assign cluster labels
             for idx, course in enumerate(courses):
                 course['cluster'] = int(kmeans.labels_[idx])
-        else:
-            # Assign default cluster label when not enough courses
-            for course in courses:
-                course['cluster'] = 0
 
-        # Generate cluster labels using OpenAI
-        cluster_labels = {}
-        for cluster_id in set(course['cluster'] for course in courses):
-            cluster_courses = [course for course in courses if course['cluster'] == cluster_id]
-            cluster_texts = " ".join(course['title'] + " " + course['description'] for course in cluster_courses)
-            prompt = f"Provide a concise label or title that summarizes the following topics:\n\n{cluster_texts}\n\nLabel:"
-            
-            # Use ChatCompletion API with gpt-3.5-turbo
-            messages = [
-                {"role": "system", "content": "You are a helpful assistant that provides concise labels for groups of topics."},
-                {"role": "user", "content": prompt}
-            ]
-            
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                max_tokens=20,
-                temperature=0.5
-            )
-            
-            label = response['choices'][0]['message']['content'].strip()
-            cluster_labels[cluster_id] = label
+            # Generate cluster labels using OpenAI
+            cluster_labels = {}
+            for cluster_id in set(course['cluster'] for course in courses):
+                cluster_courses = [course for course in courses if course['cluster'] == cluster_id]
+                cluster_texts = " ".join(f"{course['title']} {course['description']}" for course in cluster_courses)
+                
+                messages = [
+                    {"role": "system", "content": "Generate a short, descriptive label (2-4 words) for a group of related courses."},
+                    {"role": "user", "content": f"Topics: {cluster_texts}"}
+                ]
+                
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=messages,
+                    max_tokens=20,
+                    temperature=0.3
+                )
+                
+                label = response['choices'][0]['message']['content'].strip()
+                cluster_labels[cluster_id] = label
 
-        # Compute cluster centroids
+        # Compute cluster centroids and similarities
         cluster_embeddings = {}
         for cluster_id in set(course['cluster'] for course in courses):
             cluster_courses = [course for course in courses if course['cluster'] == cluster_id]
@@ -295,9 +288,9 @@ def generate_learning_roadmap(query):
             font_color="black"
         )
 
-        # Adjust layout settings
+        # Adjust layout settings for better cluster visualization
         net.set_options("""
-        var options = {
+        {
             "physics": {
                 "enabled": true,
                 "solver": "forceAtlas2Based",
@@ -310,6 +303,20 @@ def generate_learning_roadmap(query):
                 "minVelocity": 0.75,
                 "timestep": 0.35,
                 "adaptiveTimestep": true
+            },
+            "nodes": {
+                "font": {
+                    "size": 16
+                }
+            },
+            "edges": {
+                "color": {
+                    "inherit": false
+                },
+                "smooth": {
+                    "enabled": true,
+                    "type": "continuous"
+                }
             }
         }
         """)
@@ -323,53 +330,58 @@ def generate_learning_roadmap(query):
                 shape='box',
                 color='lightblue',
                 font={'size': 20, 'color': 'black'},
-                level=0  # Position at the top
+                level=0
             )
-            cluster_labels[cluster_id] = cluster_node_id  # Store the node ID for connections
+            cluster_labels[cluster_id] = cluster_node_id
 
-        # Add course nodes and connect them to cluster label nodes
+        # Add course nodes and connect them to cluster labels
         for course in courses:
             net.add_node(
                 course['id'],
                 label=course['title'],
                 title=course['description'],
-                group=course['cluster']
+                group=course['cluster'],
+                shape='dot',
+                size=25
             )
-            # Connect course node to cluster label node
+            # Connect to cluster
             cluster_node_id = cluster_labels[course['cluster']]
-            net.add_edge(cluster_node_id, course['id'], color='grey', hidden=True)  # Hidden edge to influence positioning
+            net.add_edge(cluster_node_id, course['id'], color='grey', hidden=True)
 
-        # Add edges based on prerequisites
+        # Create course dictionary for prerequisite lookup
+        course_dict = {course['id']: course for course in courses}
+
+        # Add prerequisite edges
         for course in courses:
             for prereq_id in course['prerequisites']:
                 if prereq_id in course_dict:
-                    net.add_edge(prereq_id, course['id'])
+                    net.add_edge(
+                        prereq_id, 
+                        course['id'],
+                        color='#666666',
+                        arrows={'to': {'enabled': True}}
+                    )
 
-        # Similarity threshold for course connections
-        similarity_threshold = 0.85  # Adjust as needed
+        # Add similarity edges within clusters
+        similarity_threshold = 0.85
+        for cluster_id in set(course['cluster'] for course in courses):
+            cluster_courses = [course for course in courses if course['cluster'] == cluster_id]
+            for i in range(len(cluster_courses)):
+                for j in range(i + 1, len(cluster_courses)):
+                    course_a = cluster_courses[i]
+                    course_b = cluster_courses[j]
+                    similarity = cosine_similarity(course_a['embedding'], course_b['embedding'])
+                    if similarity > similarity_threshold:
+                        net.add_edge(
+                            course_a['id'],
+                            course_b['id'],
+                            color='blue',
+                            title=f"Similarity: {similarity:.2f}",
+                            width=1
+                        )
 
-        # Add edges based on similarity within clusters
-        if len(courses) >= 2:
-            for cluster_id in set(course['cluster'] for course in courses):
-                cluster_courses = [course for course in courses if course['cluster'] == cluster_id]
-                for i in range(len(cluster_courses)):
-                    for j in range(i + 1, len(cluster_courses)):
-                        course_a = cluster_courses[i]
-                        course_b = cluster_courses[j]
-                        similarity = cosine_similarity(course_a['embedding'], course_b['embedding'])
-                        if similarity > similarity_threshold:
-                            # Add an edge between similar courses
-                            net.add_edge(
-                                course_a['id'],
-                                course_b['id'],
-                                color='blue',
-                                title=f"Similarity: {similarity:.2f}"
-                            )
-
-        # Threshold for cluster similarity
-        cluster_similarity_threshold = 0.5  # Adjust as needed
-
-        # Add edges between cluster label nodes
+        # Add edges between clusters
+        cluster_similarity_threshold = 0.5
         for cluster_id_a, cluster_id_b, similarity in cluster_similarities:
             if similarity > cluster_similarity_threshold:
                 node_id_a = cluster_labels[cluster_id_a]
@@ -382,7 +394,7 @@ def generate_learning_roadmap(query):
                     title=f"Cluster Similarity: {similarity:.2f}"
                 )
 
-        # Identify and highlight start and end nodes
+        # Highlight start and end nodes
         prereq_ids = set()
         for course in courses:
             prereq_ids.update(course['prerequisites'])
@@ -396,32 +408,214 @@ def generate_learning_roadmap(query):
         for node_id in end_nodes:
             net.get_node(node_id)['color'] = 'red'
 
-        # Generate the network graph HTML
-        html = net.generate_html()
-        print("Generated network graph HTML.")
+        # Generate the HTML
+        try:
+            html = net.generate_html()
+            print(f"Generated network visualization with {len(net.nodes)} nodes and {len(net.edges)} edges")
+        except Exception as e:
+            print(f"Error generating visualization: {e}")
+            html = ""
 
         return courses, html
 
     except Exception as e:
-        print(f"Error occurred during roadmap generation: {str(e)}")
+        print(f"Error in generate_learning_roadmap: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return None, None
+    finally:
+        # Ensure we close the connection even if there's an error
+        if 'graph' in locals():
+            try:
+                graph.close()
+                print("Neo4j connection closed properly")
+            except:
+                print("Error while closing Neo4j connection")
+
+def initialize_session_state():
+    if 'course_progress' not in st.session_state:
+        st.session_state.course_progress = {}
 
 # Main function to run the app
 def main():
     st.title("Learning Roadmap Generator")
-
+    
+    # Initialize session state
+    initialize_session_state()
+    
     # Knowledge Graph Section
     st.header("Knowledge Graph")
-    user_query = st.text_input("Enter your learning goal:", "List all courses for learning database management systems.")
+    user_query = st.text_input("Enter your learning goal:", "What courses do I need to learn AI?")
+    
     if user_query:
-        courses, html = generate_learning_roadmap(user_query)
-        if courses and html:
-            # Display the network graph in Streamlit
-            components.html(html, height=750, scrolling=True)
-        else:
-            st.write("No courses found for your query.")
+        with st.spinner('Generating your learning roadmap...'):
+            try:
+                print("Starting roadmap generation...")
+                courses, html = generate_learning_roadmap(user_query)
+                
+                if courses and html:
+                    # Display the graph first
+                    st.markdown("### 🔍 Course Graph")
+                    components.html(html, height=750, scrolling=True)
+                    
+                    # Then show the course list
+                    st.markdown("### 📚 Learning Path")
+                    
+                    # Debug courses data
+                    print("\nDEBUG - Courses data:")
+                    print(f"Number of courses: {len(courses)}")
+                    if courses:
+                        print("First course structure:", courses[0])
+                    
+                    # Sort courses safely
+                    try:
+                        sorted_courses = sorted(
+                            courses,
+                            key=lambda x: (
+                                x.get('difficulty_level', 1),
+                                x.get('prereq_depth', 0),
+                                len(x.get('prerequisites', [])),
+                                x.get('title', '')
+                            )
+                        )
+                    except Exception as e:
+                        print(f"Sorting error: {e}")
+                        sorted_courses = courses
+                    
+                    # Display courses
+                    for i, course in enumerate(sorted_courses, 1):
+                        try:
+                            with st.expander(f"Step {i}: {course.get('title', 'Untitled Course')}", expanded=False):
+                                # Course Description
+                                st.write("**Description:**")
+                                st.write(course.get('description', 'No description available'))
+                                
+                                # Prerequisites
+                                prereqs = course.get('prerequisites', [])
+                                if prereqs:
+                                    st.write("**Prerequisites:**")
+                                    for prereq_id in prereqs:
+                                        prereq = next(
+                                            (c for c in courses if c.get('id') == prereq_id),
+                                            {'title': 'Unknown Course'}
+                                        )
+                                        st.markdown(f"- {prereq.get('title', 'Unknown Course')}")
+                                
+                                # Course Details
+                                col1, col2 = st.columns([1, 1])
+                                with col1:
+                                    difficulty = int(course.get('difficulty_level', 1))
+                                    st.write("**Difficulty Level:**", "⭐" * difficulty)
+                                    st.write("**Prerequisites Count:**", len(prereqs))
+                                
+                                with col2:
+                                    course_id = str(course.get('id', ''))
+                                    current_status = st.session_state.course_progress.get(
+                                        course_id, {}).get('status', 'Not Started')
+                                    
+                                    status = st.selectbox(
+                                        "Status",
+                                        options=['Not Started', 'In Progress', 'Completed'],
+                                        key=f"status_{course_id}",
+                                        index=['Not Started', 'In Progress', 'Completed'].index(current_status)
+                                    )
+                                    
+                                    if st.button("Save Progress", key=f"save_{course_id}"):
+                                        st.session_state.course_progress[course_id] = {
+                                            'status': status,
+                                            'title': course.get('title', 'Untitled Course'),
+                                            'last_updated': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                        }
+                                        st.success(f"Progress saved! Course marked as {status}")
+                        except Exception as e:
+                            st.error(f"Error displaying course: {str(e)}")
+                            continue
+                    
+                    # Sidebar Progress Overview
+                    with st.sidebar:
+                        st.markdown("### Your Progress")
+                        completed = sum(1 for c in st.session_state.course_progress.values() 
+                                     if c.get('status') == 'Completed')
+                        in_progress = sum(1 for c in st.session_state.course_progress.values() 
+                                        if c.get('status') == 'In Progress')
+                        st.metric("Completed Courses", completed)
+                        st.metric("Courses In Progress", in_progress)
+                
+                else:
+                    st.warning("No courses found for your query. Please try different search terms.")
+            
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                print(f"Error details: {e}")
+                import traceback
+                print(traceback.format_exc())
+
+def get_optimized_course_sequence(graph, core_topics):
+    print("\nExecuting optimized course sequence query...")
+    print(f"Core topics: {core_topics}")
+    
+    # Update difficulty query with more specific levels
+    difficulty_query = """
+    MATCH (c:Course)
+    SET c.difficulty = 
+    CASE 
+        WHEN c.title CONTAINS 'Introduction' OR 
+             c.title CONTAINS 'Fundamentals' OR 
+             c.title CONTAINS 'Basics'
+        THEN 1
+        WHEN c.title CONTAINS 'Statistical' OR
+             c.title CONTAINS 'Neural Networks' OR
+             c.title CONTAINS 'Deep Learning'
+        THEN 3
+        WHEN c.title CONTAINS 'Advanced' OR
+             c.title CONTAINS 'Generative' OR
+             c.title CONTAINS 'Control'
+        THEN 4
+        ELSE 2
+    END
+    """
+    graph.run(difficulty_query)
+    
+    # Build the topic conditions
+    topic_conditions = []
+    params = {}
+    for i, topic in enumerate(core_topics):
+        param_name = f'kw{i}'
+        topic_conditions.append(
+            f"(toLower(c.title) CONTAINS ${param_name} OR toLower(c.description) CONTAINS ${param_name})"
+        )
+        params[param_name] = topic.lower()
+
+    # Updated query with proper aggregation handling
+    query = f"""
+    MATCH (c:Course)
+    WHERE {" OR ".join(topic_conditions)}
+    
+    // Find explicit prerequisites
+    OPTIONAL MATCH path=(c)-[r:REQUIRES*]->(prereq:Course)
+    WITH c, 
+         collect(DISTINCT prereq) as prerequisites,
+         max(length(path)) as prereq_depth
+    
+    // Find related courses
+    OPTIONAL MATCH (c)-[sim:SIMILAR_TO]-(related:Course)
+    WHERE related.difficulty <= coalesce(c.difficulty, 1)
+    
+    RETURN 
+        c,
+        prerequisites,
+        collect(DISTINCT related) as related_courses,
+        coalesce(c.difficulty, 1) as difficulty_level,
+        coalesce(prereq_depth, 0) as prereq_depth,
+        size(prerequisites) as prereq_count
+    ORDER BY difficulty_level ASC, prereq_depth ASC, prereq_count ASC, c.title ASC
+    """
+    
+    return graph.run(query, **params)
 
 if __name__ == "__main__":
-    init_neo4j()
-    main()
-    close_neo4j_connection()
+    try:
+        init_neo4j()
+        main()
+    finally:
+        close_neo4j_connection()
